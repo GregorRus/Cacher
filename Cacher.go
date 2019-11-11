@@ -227,6 +227,12 @@ func main() {
 	if *goMaxProcs == 0 {
 		*goMaxProcs = runtime.NumCPU()
 	}
+	if *listeningPort == 0 {
+		panic("Missing required flag -port")
+	}
+	if *upstreamAddress == "" {
+		panic("Missing required flag -upstream")
+	}
 	runtime.GOMAXPROCS(*goMaxProcs)
 
 	cacher := NewCacheServer(*upstreamAddress)
