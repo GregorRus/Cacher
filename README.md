@@ -13,3 +13,9 @@ This project is written in golang, all source code is contained in the Cache.go 
 ## Execution / Запуск
 
     Cacher -proc 1 -port 80 -upstream localhost:8080
+
+### Flags / Флаги
+
+* `-proc` — Count of logical CPUs using by go runtime, 0 mean count of all available logical CPUs. / Количество логических CPU, используемых рантаймом go, 0 означает количество всех доступных логических CPU.
+* `-port` — Cache server listening port. / Порт, покорому кэш сервер ожидает запросы.
+* `-upstream` — Host address and port of upstream web service. / Адресс и порт основного веб сервиса.
