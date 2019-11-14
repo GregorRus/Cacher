@@ -13,6 +13,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"path"
+	"io/ioutil"
 )
 
 func CopyHeader(source http.Header, destination http.Header) {
@@ -109,6 +111,17 @@ type CacheServer struct {
 	upstreamAccessLog *log.Logger
 }
 
+func newCacheServerLogInitHelper(path string, logPrefix string, logFlags int, logFileFlags int, logFilePrivileges int) *log.Logger {
+	if path != "off" {
+		file, err := os.OpenFile(path, logFileFlags, logFilePrivileges)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return log.New(file, logPrefix, logFlags)
+	}
+	return log.New(ioutil.Discard, logPrefix, logFlags)
+}
+
 func NewCacheServer(config *CacheServerConfig) (cs *CacheServer) {
 	cs = new(CacheServer)
 
@@ -123,29 +136,20 @@ func NewCacheServer(config *CacheServerConfig) (cs *CacheServer) {
 
 	logFlags := log.Lshortfile | log.Ldate | log.Ltime | log.Lmicroseconds | log.LUTC
 	logFileFlags := os.O_WRONLY | os.O_APPEND | os.O_CREATE
-	file, err := os.OpenFile(config.AccessLogPath, logFileFlags, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	cs.accessLog = log.New(file, "accessLog: ", logFlags)
+	logFilePrivileges := 0644
 
-	file, err = os.OpenFile(config.ErrorLogPath, logFileFlags, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	cs.errorLog = log.New(file, "errorLog: ", logFlags)
-
-	file, err = os.OpenFile(config.CacheLogPath, logFileFlags, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	cs.cacheLog = log.New(file, "cacheLog: ", logFlags)
-
-	file, err = os.OpenFile(config.UpstreamAccessLogPath, logFileFlags, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	cs.upstreamAccessLog = log.New(file, "upstreamAccessLog: ", logFlags)
+	cs.accessLog = newCacheServerLogInitHelper(config.AccessLogPath, "accessLog: ",
+		logFlags, logFileFlags, logFilePrivileges,
+	)
+	cs.errorLog = newCacheServerLogInitHelper(config.ErrorLogPath, "errorLog: ",
+		logFlags, logFileFlags, logFilePrivileges,
+	)
+	cs.cacheLog = newCacheServerLogInitHelper(config.CacheLogPath, "cacheLog: ",
+		logFlags, logFileFlags, logFilePrivileges,
+	)
+	cs.upstreamAccessLog = newCacheServerLogInitHelper(config.UpstreamAccessLogPath, "upstreamAccessLog: ",
+		logFlags, logFileFlags, logFilePrivileges,
+	)
 
 	return
 }
@@ -312,10 +316,11 @@ func NewCacheServerConfig() (conf CacheServerConfig) {
 	goMaxProcs := flag.Int("proc", 1, "Max go procs count")
 	listeningPort := flag.Int("port", 0, "Listening port")
 	upstreamAddress := flag.String("upstream", "", "Upstream address")
-	accessLogPath := flag.String("access-log", "access.log", "Access log file path")
-	errorLogPath := flag.String("error-log", "error.log", "Error log file path")
-	cacheLogPath := flag.String("cache-log", "cache.log", "Cache changes log file path")
-	upstreamAccessLogPath := flag.String("upstream-log", "upstream.log", "Upstream access log file path")
+	logPathPrefix := flag.String("log-prefix", "", "Logs path prefix or \"off\" to disable logging")
+	accessLogPath := flag.String("access-log", "access.log", "Access log file path or \"off\" to disable logging")
+	errorLogPath := flag.String("error-log", "error.log", "Error log file path or \"off\" to disable logging")
+	cacheLogPath := flag.String("cache-log", "cache.log", "Cache changes log file path or \"off\" to disable logging")
+	upstreamAccessLogPath := flag.String("upstream-log", "upstream.log", "Upstream access log file path or \"off\" to disable logging")
 	flag.Parse()
 
 	if *goMaxProcs == 0 {
@@ -337,10 +342,14 @@ func NewCacheServerConfig() (conf CacheServerConfig) {
 	conf.UpstreamAddress = *upstreamAddress
 	log.Printf("Upstream server is \"%s\"\n", *upstreamAddress)
 
-	conf.AccessLogPath = *accessLogPath
-	conf.ErrorLogPath = *errorLogPath
-	conf.CacheLogPath = *cacheLogPath
-	conf.UpstreamAccessLogPath = *upstreamAccessLogPath
+	if logPathPrefix != "off" {
+		conf.AccessLogPath = path.Join(*logPathPrefix, *accessLogPath)
+		conf.ErrorLogPath = path.Join(*logPathPrefix, *errorLogPath)
+		conf.CacheLogPath = path.Join(*logPathPrefix, *cacheLogPath)
+		conf.UpstreamAccessLogPath = path.Join(*logPathPrefix, *upstreamAccessLogPath)
+	} else {
+		conf.AccessLogPath = conf.ErrorLogPath = conf.CacheLogPath = conf.UpstreamAccessLogPath = "off"
+	}
 
 	return
 }
