@@ -5,16 +5,16 @@ import (
 	"encoding/hex"
 	"flag"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"path"
 	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
-	"path"
-	"io/ioutil"
 )
 
 func CopyHeader(source http.Header, destination http.Header) {
@@ -111,7 +111,7 @@ type CacheServer struct {
 	upstreamAccessLog *log.Logger
 }
 
-func newCacheServerLogInitHelper(path string, logPrefix string, logFlags int, logFileFlags int, logFilePrivileges int) *log.Logger {
+func newCacheServerLogInitHelper(path string, logPrefix string, logFlags int, logFileFlags int, logFilePrivileges os.FileMode) *log.Logger {
 	if path != "off" {
 		file, err := os.OpenFile(path, logFileFlags, logFilePrivileges)
 		if err != nil {
@@ -136,7 +136,7 @@ func NewCacheServer(config *CacheServerConfig) (cs *CacheServer) {
 
 	logFlags := log.Lshortfile | log.Ldate | log.Ltime | log.Lmicroseconds | log.LUTC
 	logFileFlags := os.O_WRONLY | os.O_APPEND | os.O_CREATE
-	logFilePrivileges := 0644
+	logFilePrivileges := os.FileMode(0644)
 
 	cs.accessLog = newCacheServerLogInitHelper(config.AccessLogPath, "accessLog: ",
 		logFlags, logFileFlags, logFilePrivileges,
@@ -342,13 +342,16 @@ func NewCacheServerConfig() (conf CacheServerConfig) {
 	conf.UpstreamAddress = *upstreamAddress
 	log.Printf("Upstream server is \"%s\"\n", *upstreamAddress)
 
-	if logPathPrefix != "off" {
+	if *logPathPrefix != "off" {
 		conf.AccessLogPath = path.Join(*logPathPrefix, *accessLogPath)
 		conf.ErrorLogPath = path.Join(*logPathPrefix, *errorLogPath)
 		conf.CacheLogPath = path.Join(*logPathPrefix, *cacheLogPath)
 		conf.UpstreamAccessLogPath = path.Join(*logPathPrefix, *upstreamAccessLogPath)
 	} else {
-		conf.AccessLogPath = conf.ErrorLogPath = conf.CacheLogPath = conf.UpstreamAccessLogPath = "off"
+		conf.AccessLogPath = "off"
+		conf.ErrorLogPath = "off"
+		conf.CacheLogPath = "off"
+		conf.UpstreamAccessLogPath = "off"
 	}
 
 	return
