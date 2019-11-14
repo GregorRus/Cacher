@@ -72,7 +72,7 @@ func (ri ResponseInfo) AddToResponseMetaHeaders(resw http.ResponseWriter) {
 
 	resw.Header().Add("Cache-Control", "public")
 	resw.Header().Add("Cache-Control", "only-if-cached")
-	resw.Header().Add("Cache-Control", "max-age="+strconv.FormatUint(uint64(time.Now().Sub(ri.LastResponseTime).Seconds()), 10))
+	resw.Header().Add("Cache-Control", "max-age="+strconv.FormatUint(uint64(ri.ExpiresTime.Sub(time.Now()).Seconds()), 10))
 	resw.Header().Add("Cache-Control", "max-stale="+strconv.FormatUint(uint64(ri.LifeTime/time.Second), 10))
 }
 
