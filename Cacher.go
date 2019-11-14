@@ -221,9 +221,10 @@ func (cs *CacheServer) TrySendFromCache(resw http.ResponseWriter, req *http.Requ
 		atomic.AddUint64(&resinfoCache.RequestCount, 1)
 		err = resinfoCache.Send(resw, req)
 		if err != nil {
-			ok = false
 			cs.errorLog.Printf("Sending error occurred during processing \"%s\": %v\n", req.URL, err)
+			return false, err
 		}
+		return true, err
 	}
 	return
 }
@@ -251,7 +252,10 @@ func (cs *CacheServer) ServeHTTP(resw http.ResponseWriter, req *http.Request) {
 				return
 			}
 			cs.toSetCache <- resinfo
-			resinfo.Send(resw, req)
+			if err = resinfo.Send(resw, req); err != nil {
+				resw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 			go cs.Updating(resinfo, resw)
 		} else {
 			waitGroup.Wait()
