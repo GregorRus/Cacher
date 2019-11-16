@@ -316,7 +316,7 @@ func NewCacheServerConfig() (conf CacheServerConfig) {
 	goMaxProcs := flag.Int("proc", 1, "Max go procs count")
 	listeningPort := flag.Int("port", 0, "Listening port")
 	upstreamAddress := flag.String("upstream", "", "Upstream address")
-	logPathPrefix := flag.String("log-prefix", "", "Logs path prefix or \"off\" to disable logging")
+	logPathPrefix := flag.String("log-prefix", "logs/", "Logs path prefix or \"off\" to disable logging")
 	accessLogPath := flag.String("access-log", "access.log", "Access log file path or \"off\" to disable logging")
 	errorLogPath := flag.String("error-log", "error.log", "Error log file path or \"off\" to disable logging")
 	cacheLogPath := flag.String("cache-log", "cache.log", "Cache changes log file path or \"off\" to disable logging")
