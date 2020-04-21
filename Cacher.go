@@ -95,6 +95,7 @@ func (ri ResponseInfo) Update(response *http.Response) {
 
 type CacheServer struct {
 	config *CacheServerConfig
+	server *http.Server
 
 	upstream        *http.Client
 	upstreamAddress string
@@ -130,6 +131,8 @@ func NewCacheServer(config *CacheServerConfig) (cs *CacheServer) {
 	cs.upstream = new(http.Client)
 	cs.upstreamAddress = config.UpstreamAddress
 	cs.cache = make(map[string]ResponseInfo)
+
+	cs.server = &http.Server{Addr: ":" + strconv.Itoa(cs.config.ListeningPort), Handler: cs}
 
 	cs.toSetCache = make(chan ResponseInfo)
 	cs.toRemoveCache = make(chan string)
@@ -294,10 +297,11 @@ func (cs *CacheServer) CacheUpdating() {
 	}
 }
 
-func (cs *CacheServer) ListenAndServe() {
+func (cs *CacheServer) ListenAndServe() (err error) {
 	log.Print("Starting cache server listening and serving\n")
-
-	http.ListenAndServe(":"+strconv.Itoa(cs.config.ListeningPort), cs)
+	err = cs.server.ListenAndServe()
+	log.Print("Ending cache server listening and serving\n")
+	return
 }
 
 type CacheServerConfig struct {
@@ -365,5 +369,6 @@ func main() {
 
 	go cacher.CacheUpdating()
 
-	cacher.ListenAndServe()
+	err := cacher.ListenAndServe()
+	log.Fatal(err)
 }
