@@ -85,12 +85,14 @@ func (ri ResponseInfo) Send(resw http.ResponseWriter, req *http.Request) (err er
 	return
 }
 
-func (ri ResponseInfo) Update(response *http.Response) {
+func (ri ResponseInfo) Update(response *http.Response) (err error) {
 	ri.Response = response
 	ri.LastResponseTime = time.Now()
 	ri.ExpiresTime = ri.LastResponseTime.Add(ri.LifeTime)
 	atomic.StoreUint64(&ri.RequestCount, 0)
 	atomic.AddUint64(&ri.UpdateCount, 1)
+	_, err = io.ReadFull(response.Body, ri.Body)
+	return
 }
 
 type CacheServer struct {
@@ -202,11 +204,16 @@ func (cs *CacheServer) ObtainFirstResponse(originalReq *http.Request) (resinfo R
 func (cs *CacheServer) ObtainUpdate(ri ResponseInfo, resw http.ResponseWriter) bool {
 	if ri.RequestCount > 1 {
 		response, err := cs.ObtainResponse(ri.OriginalRequest)
+		defer response.Body.Close()
 		if err != nil {
 			cs.toRemoveCache <- ri.Path
 			return false
 		}
-		ri.Update(response)
+		err = ri.Update(response)
+		if err != nil {
+			cs.toRemoveCache <- ri.Path
+			return false
+		}
 	} else {
 		cs.toRemoveCache <- ri.Path
 		return false
